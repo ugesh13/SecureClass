@@ -2,9 +2,9 @@ Write-Host "====================================================" -ForegroundCol
 Write-Host "Starting SecureClass (Backend + Frontend)..." -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 
-# Start Backend in a dedicated window
+# Start Backend in a dedicated window with explicit python executable (bypasses execution policy restrictions)
 Write-Host "Starting FastAPI Backend on http://localhost:8000 ..." -ForegroundColor Yellow
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$PSScriptRoot\backend'; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000"
+Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "Set-Location '$PSScriptRoot\backend'; & '.\.venv\Scripts\python.exe' -m uvicorn app.main:app --reload --port 8000"
 
 # Wait a moment
 Start-Sleep -Seconds 2
