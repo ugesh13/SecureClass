@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "SecureClass Exam Proctor Companion",
+  "version": "1.0.0",
+  "description": "Companion extension for SecureClass to monitor active external tabs and detect unauthorized window excursions during proctored exams.",
+  "permissions": [
+    "tabs",
+    "webNavigation",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:5173/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+.venv/
+venv/
+backend/.venv/
+backend/venv/
+
+# Python cache & build
+__pycache__/
+backend/app/__pycache__/
+backend/app/routers/__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Frontend build & cache
+frontend/dist/
+frontend/.vite/
+.vite/
+
+# Databases & local state
+*.db
+*.sqlite3
+secureclass.db
+backend/secureclass.db
+
+# Logs & temp files
+*.log
+backend_log.txt
+frontend_log.txt
+
+# Environment variables
+.env
+.env.local
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

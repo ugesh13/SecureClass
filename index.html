@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Exams Reimagined — SecureClass</title>
+  <meta name="description" content="A sculptural, editorial presentation experience exploring form, balance, and kinetic harmony." />
+
+  <!-- Typography: Plus Jakarta Sans & Newsreader italic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Three.js for lightweight, GPU-accelerated PBR 3D abstract sculptures -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    /* ==========================================================
+       DESIGN TOKENS & SYSTEM
+       Warm creamy presentation canvas inspired by editorial design
+       ========================================================== */
+    :root {
+      --cream-bg: #EFECE4;
+      --cream-surface: #F5F3EC;
+      --cream-dark: #E2DFD6;
+      --cream-border: rgba(32, 32, 32, 0.08);
+      --ink: #1F1E1B;
+      --ink-muted: #6B6861;
+      --ink-subtle: #96938B;
+      --accent-coral: #DE6B48;
+      --accent-green: #4D644B;
+      --accent-blue: #324467;
+      --accent-rose: #D4A59A;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-serif: 'Newsreader', Georgia, serif;
+      --ease-cinematic: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-transition: 850ms;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #DFDCD4;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Outer Deck Presentation Wrapper (Rounded editorial frame) */
+    .deck-viewport {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(6px, 1.4vw, 18px);
+      z-index: 1;
+    }
+
+    .deck-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 1800px;
+      max-height: 1100px;
+      background-color: var(--cream-bg);
+      border-radius: clamp(14px, 2vw, 24px);
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.03),
+        0 20px 48px -12px rgba(28, 27, 24, 0.1),
+        0 0 0 1px var(--cream-border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Continuous 3D WebGL Canvas Layer */
+    #webgl-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 1200ms ease;
+    }
+    #webgl-canvas.loaded {
+      opacity: 1;
+    }
+
+    /* Scene Container */
+    .scenes-stack {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* Individual Full-Screen Scene */
+    .scene {
+      position: absolute;
+      inset: 0;
+      padding: clamp(1.5rem, 4.5vw, 4.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.96) translate3d(0, 32px, 0);
+      transition:
+        opacity var(--duration-transition) var(--ease-cinematic),
+        transform var(--duration-transition) var(--ease-cinematic),
+        visibility 0ms linear var(--duration-transition);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .scene.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translate3d(0, 0, 0);
+      transition:
+        opacity var(--duration-transition) var(--ease-cinematic),
+        transform var(--duration-transition) var(--ease-cinematic),
+        visibility 0ms linear 0ms;
+      pointer-events: auto;
+    }
+
+    .scene.prev {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.96) translate3d(0, -32px, 0);
+    }
+
+    /* Header Nav / Deck Meta */
+    .deck-header {
+      position: absolute;
+      top: clamp(1.2rem, 3vw, 2.5rem);
+      left: clamp(1.5rem, 4.5vw, 4.5rem);
+      right: clamp(1.5rem, 4.5vw, 4.5rem);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .brand-mark {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent-coral);
+    }
+
+    .scene-counter {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--ink-muted);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--cream-border);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+    }
+
+    .scene-counter .current {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .progress-track {
+      width: 48px;
+      height: 2px;
+      background: rgba(31, 30, 27, 0.12);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 25%;
+      background: var(--ink);
+      border-radius: 2px;
+      transition: transform var(--duration-transition) var(--ease-cinematic);
+      transform-origin: left;
+    }
+
+    /* Subtle Editorial Scene Typography */
+    .scene-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-width: 58%;
+      z-index: 4;
+      pointer-events: auto;
+    }
+
+    .tagline {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: clamp(1.05rem, 2vw, 1.55rem);
+      font-weight: 400;
+      color: var(--ink-muted);
+      margin-bottom: clamp(0.75rem, 1.8vw, 1.5rem);
+      letter-spacing: -0.01em;
+      opacity: 0.95;
+    }
+
+    .hero-title {
+      font-size: clamp(2.75rem, 6.5vw, 5.5rem);
+      font-weight: 800;
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      color: var(--ink);
+      margin-bottom: clamp(0.75rem, 1.8vw, 1.25rem);
+    }
+
+    .hero-title span {
+      display: block;
+    }
+
+    .company-name {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: clamp(1.1rem, 2.2vw, 1.7rem);
+      color: var(--ink-muted);
+      font-weight: 400;
+      margin-top: 0.5rem;
+    }
+
+    .description-text {
+      font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+      line-height: 1.6;
+      color: var(--ink-muted);
+      max-width: 480px;
+      margin-top: 1rem;
+      font-weight: 400;
+    }
+
+    /* Scene 2 & 3 Interactive Feature Cards */
+    .interactive-card {
+      width: clamp(180px, 22vw, 240px);
+      aspect-ratio: 1;
+      background: #4A4D53;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #FFFFFF;
+      box-shadow: 0 16px 36px -8px rgba(35, 37, 41, 0.28);
+      cursor: pointer;
+      transition:
+        transform 240ms var(--ease-smooth),
+        box-shadow 240ms var(--ease-smooth),
+        background-color 240ms ease;
+      margin-top: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .interactive-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent 70%);
+      pointer-events: none;
+    }
+
+    .interactive-card:hover {
+      transform: translate3d(0, -4px, 0) scale(1.02);
+      box-shadow: 0 24px 44px -10px rgba(35, 37, 41, 0.38);
+      background: #3F4247;
+    }
+
+    .interactive-card:active {
+      transform: translate3d(0, 1px, 0) scale(0.98);
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      stroke: #FFFFFF;
+      stroke-width: 1.7;
+      fill: none;
+      opacity: 0.9;
+    }
+
+    .card-label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    /* Scene 1 Exam Active Badge Card */
+    .exam-active-card {
+      width: clamp(170px, 18vw, 210px);
+      aspect-ratio: 1.05;
+      background: #34373E;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1rem 1rem 1rem;
+      color: #FFFFFF;
+      box-shadow: 0 16px 36px -8px rgba(35, 37, 41, 0.28);
+      margin-top: 1.75rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform 240ms ease, box-shadow 240ms ease;
+    }
+
+    .exam-active-card:hover {
+      transform: translate3d(0, -4px, 0) scale(1.02);
+      box-shadow: 0 24px 44px -10px rgba(35, 37, 41, 0.38);
+    }
+
+    .exam-active-card .card-eye-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eye-outer {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eye-inner {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #FFFFFF;
+    }
+
+    .card-status-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #FFFFFF;
+      text-align: center;
+    }
+
+    .card-status-footer {
+      width: 100%;
+      padding-top: 0.6rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: #34D399;
+    }
+
+    .card-status-footer .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #34D399;
+      box-shadow: 0 0 8px #34D399;
+    }
+
+    /* Metric & Pill Rows for Scene 3 */
+    .spec-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 1.8rem;
+    }
+
+    .spec-pill {
+      background: rgba(255, 255, 255, 0.6);
+      border: 1px solid var(--cream-border);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 180ms ease, background 180ms ease;
+    }
+
+    .spec-pill:hover {
+      transform: translate3d(0, -2px, 0);
+      background: #FFFFFF;
+    }
+
+    /* Scene 4: Minimal Call to Action */
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      margin-top: 2rem;
+    }
+
+    .btn-tactile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 16px 32px;
+      background-color: var(--ink);
+      color: var(--cream-bg);
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 24px -6px rgba(31, 30, 27, 0.28);
+      transition:
+        transform 200ms var(--ease-smooth),
+        box-shadow 200ms var(--ease-smooth),
+        background-color 200ms ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-tactile:hover {
+      transform: translate3d(0, -3px, 0);
+      box-shadow: 0 16px 32px -8px rgba(31, 30, 27, 0.38);
+      background-color: #000000;
+    }
+
+    .btn-tactile:active {
+      transform: translate3d(0, 1px, 0) scale(0.98);
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 15px 28px;
+      background: transparent;
+      color: var(--ink);
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border: 1px solid rgba(31, 30, 27, 0.2);
+      cursor: pointer;
+      transition: all 180ms ease;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.5);
+      border-color: var(--ink);
+      transform: translate3d(0, -2px, 0);
+    }
+
+    /* Footer Year & Indicators */
+    .scene-footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      width: 100%;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .year-stamp {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--ink-subtle);
+      letter-spacing: 0.04em;
+    }
+
+    .footer-note {
+      font-size: 0.78rem;
+      color: var(--ink-subtle);
+      font-weight: 500;
+    }
+
+    /* Background Large Typographic Watermark */
+    .bg-watermark-title {
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: clamp(3.2rem, 10.5vw, 10.2rem);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: rgba(31, 30, 27, 0.22);
+      text-shadow: 0 4px 24px rgba(31, 30, 27, 0.12);
+      white-space: nowrap;
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+      transition: opacity 700ms var(--ease-cinematic), transform 700ms var(--ease-cinematic);
+    }
+
+    .bg-watermark-sub-group {
+      position: absolute;
+      top: 66%;
+      left: calc(clamp(1.5rem, 4vw, 3.5rem) + 250px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      gap: 8px;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+      transition: opacity 700ms var(--ease-cinematic), transform 700ms var(--ease-cinematic);
+    }
+
+    .bg-watermark-sub {
+      font-size: clamp(1.6rem, 3.8vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: rgba(31, 30, 27, 0.20);
+      text-shadow: 0 3px 20px rgba(31, 30, 27, 0.10);
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    /* Circular Floating Navigation Arrows (Left & Right) */
+    .nav-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: clamp(44px, 4.4vw, 56px);
+      height: clamp(44px, 4.4vw, 56px);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--cream-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      transition:
+        transform 200ms var(--ease-smooth),
+        background-color 200ms ease,
+        opacity 200ms ease,
+        box-shadow 200ms ease;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .nav-arrow:hover:not(:disabled) {
+      transform: translateY(-50%) scale(1.08);
+      background: #FFFFFF;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .nav-arrow:active:not(:disabled) {
+      transform: translateY(-50%) scale(0.96);
+    }
+
+    .nav-arrow:disabled {
+      opacity: 0.22;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .nav-arrow.prev {
+      left: clamp(14px, 2.5vw, 32px);
+    }
+
+    .nav-arrow.next {
+      right: clamp(14px, 2.5vw, 32px);
+    }
+
+    .nav-arrow svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2.2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Modal for Card Click */
+    .toast-pill {
+      position: absolute;
+      bottom: clamp(1.5rem, 3.5vw, 3rem);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ink);
+      color: var(--cream-surface);
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 260ms var(--ease-smooth);
+      z-index: 100;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toast-pill.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Key hints in corner */
+    .key-hints {
+      position: absolute;
+      bottom: clamp(1.2rem, 3vw, 2.5rem);
+      right: clamp(1.5rem, 4.5vw, 4.5rem);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--ink-subtle);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    .key-cap {
+      display: inline-block;
+      padding: 3px 7px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--cream-border);
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.68rem;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    /* ==========================================================
+       RESPONSIVE ADAPTATIONS
+       ========================================================== */
+    @media (max-width: 960px) {
+      .deck-viewport {
+        padding: 0;
+      }
+      .deck-frame {
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .scene-body {
+        max-width: 100%;
+      }
+      .hero-title {
+        font-size: clamp(3.2rem, 14vw, 5.5rem);
+      }
+      .nav-arrow.prev {
+        left: 12px;
+        bottom: 18px;
+        top: auto;
+        transform: none;
+      }
+      .nav-arrow.next {
+        right: 12px;
+        bottom: 18px;
+        top: auto;
+        transform: none;
+      }
+      .nav-arrow:hover:not(:disabled) {
+        transform: scale(1.05);
+      }
+      .key-hints {
+        display: none;
+      }
+      .interactive-card {
+        width: 140px;
+        margin-top: 1.2rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .scene {
+        padding: 1.4rem 1.4rem 5rem 1.4rem;
+      }
+      .hero-title {
+        font-size: clamp(2.8rem, 15vw, 4rem);
+        line-height: 0.95;
+      }
+      .scene-body {
+        justify-content: flex-start;
+        padding-top: 4.5rem;
+      }
+      .deck-header {
+        top: 1.2rem;
+        left: 1.4rem;
+        right: 1.4rem;
+      }
+      .year-stamp {
+        margin-bottom: 0.5rem;
+      }
+    }
+
+    /* Accessibility: Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="deck-viewport">
+    <main class="deck-frame" id="presentation-deck" aria-roledescription="carousel" aria-label="Interactive Presentation Deck">
+
+      <!-- Background Large Typographic Watermark -->
+      <span class="bg-watermark-title" id="bg-watermark-title" aria-hidden="true">SECURE CLASS</span>
+      <div class="bg-watermark-sub-group" id="bg-watermark-sub" aria-hidden="true">
+        <span class="bg-watermark-sub">Secure Learning.</span>
+        <span class="bg-watermark-sub">Smarter Assessments.</span>
+      </div>
+
+      <!-- WebGL Canvas for 3D Sculptural Form Transitions -->
+      <canvas id="webgl-canvas"></canvas>
+
+      <!-- Persistent Header Controls -->
+      <header class="deck-header">
+        <div style="width: 100px;"></div>
+
+        <div class="scene-counter" aria-live="polite">
+          <span class="current" id="counter-current">01</span>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <span class="total">04</span>
+        </div>
+      </header>
+
+      <!-- Vertical Circular Navigation Buttons (↑ and ↓) -->
+      <div style="position: absolute; right: clamp(1rem, 2.5vw, 2.5rem); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 30; pointer-events: auto;">
+        <button class="nav-arrow" id="btn-prev" aria-label="Previous scene" style="position: static; transform: none;" disabled>
+          <svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6" /></svg>
+        </button>
+        <button class="nav-arrow" id="btn-next" aria-label="Next scene" style="position: static; transform: none;">
+          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      </div>
+
+      <!-- Scenes Stack -->
+      <div class="scenes-stack">
+
+        <!-- ================= SCENE 01: HERO / EXAMS REIMAGINED ================= -->
+        <section class="scene active" id="scene-0" aria-label="Slide 1: Exams Reimagined">
+          <div class="scene-body">
+            <p class="tagline">Academic integrity & modern assessment</p>
+            <h1 class="hero-title">
+              <span>Exams.</span>
+              <span>Reimagined.</span>
+            </h1>
+            <p class="description-text">
+              A secure digital examination platform designed to protect academic integrity without disrupting the student experience.
+            </p>
+          </div>
+
+          <footer class="scene-footer">
+            <span class="year-stamp">2077</span>
+            <span class="footer-note">Edition 01 / Next-Gen Assessment Platform</span>
+          </footer>
+        </section>
+
+        <!-- ================= SCENE 02: PRODUCT / RETHINKING ONLINE ASSESSMENTS ================= -->
+        <section class="scene" id="scene-1" aria-label="Slide 2: Rethinking Online Assessments">
+          <div class="scene-body">
+            <p class="tagline">Precision in every question</p>
+            <h2 class="hero-title">
+              <span>Rethinking</span>
+              <span>Online Assessments.</span>
+            </h2>
+            <p class="description-text">
+              Built for modern education, SecureClass combines intelligent assessment tools with a secure and focused examination environment.
+            </p>
+          </div>
+
+          <footer class="scene-footer">
+            <span class="year-stamp">2077</span>
+            <span class="footer-note">Architectural Scale / 0.02mm Tolerance</span>
+          </footer>
+        </section>
+
+        <!-- ================= SCENE 03: FEATURES / BUILT FOR FAIRNESS ================= -->
+        <section class="scene" id="scene-2" aria-label="Slide 3: Built for Fairness">
+          <div class="scene-body">
+            <p class="tagline">Structure, security & simplicity</p>
+            <h2 class="hero-title">
+              <span>Built for</span>
+              <span>Better Assessment</span>
+            </h2>
+            <p class="description-text">
+              Everything you need to create consistent, controlled, and reliable online examinations.
+            </p>
+
+            <div class="spec-pills">
+              <span class="spec-pill">✓ Balanced Assessments</span>
+              <span class="spec-pill">◉ Question Coverage</span>
+              <span class="spec-pill">● Immutable Attempts</span>
+              <span class="spec-pill">↻ Regrade Support</span>
+            </div>
+          </div>
+
+          <footer class="scene-footer">
+            <span class="year-stamp">2077</span>
+            <span class="footer-note">Zero-Compromise Security & Fair Grading</span>
+          </footer>
+        </section>
+
+        <!-- ================= SCENE 04: FINALE / POWERFUL TOOLS ================= -->
+        <section class="scene" id="scene-3" aria-label="Slide 4: Powerful Tools, Simple Control">
+          <div class="scene-body">
+            <p class="tagline">Built for educators & institutions</p>
+            <h2 class="hero-title">
+              <span>Powerful Tools</span>
+              <span>Simple Control</span>
+            </h2>
+            <p class="description-text">
+              Create assessments, manage students, monitor exam sessions, and review results — all from one streamlined platform.
+            </p>
+
+            <div class="cta-group">
+              <button class="btn-tactile" id="btn-inquire">
+                <span>Create Exam</span>
+                <span>→</span>
+              </button>
+              <button class="btn-ghost" id="btn-catalogue">
+                <span>Explore Platform</span>
+              </button>
+            </div>
+          </div>
+
+          <footer class="scene-footer">
+            <span class="year-stamp">2077</span>
+            <span class="footer-note">© Atelier Obscura. All rights reserved.</span>
+          </footer>
+        </section>
+
+      </div>
+
+      <!-- Corner Keyboard Hints -->
+      <aside class="key-hints" aria-hidden="true">
+        <span>Navigate</span>
+        <span class="key-cap">←</span>
+        <span class="key-cap">→</span>
+        <span>or</span>
+        <span class="key-cap">Scroll</span>
+      </aside>
+
+      <!-- Feedback Toast -->
+      <div class="toast-pill" id="deck-toast" role="status" aria-live="polite">
+        <span id="toast-message">Opening preview reel...</span>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==========================================================
+       THREE.JS CONTINUOUS 3D SCULPTURAL STAGE
+       Renders the exact abstract forms from the reference images
+       and transitions seamlessly between slides.
+       ========================================================== -->
+  <script>
+    (function () {
+      "use strict";
+
+      // Palette matching reference image lighting & clay materials
+      const PALETTE = {
+        bg: 0xEFECE4,
+        coral: 0xDF6235,        // Top bead on Scene 1 / Fulcrum sphere on Scene 2
+        mossGreen: 0x486444,    // Spherical balance mass on Scene 1 / Lever arm on Scene 2
+        cobaltBlue: 0x2E4166,   // Torus ring on Scene 1
+        salmonPink: 0xD79E92,   // Curved cradle segment on Scene 1
+        monolithCream: 0xD8D4C8,// Quarter cylinder on Scene 2
+        leverGreen: 0x7E9A68,   // Slanted lever beam on Scene 2
+        lightFloor: 0xE2DFD6,
+      };
+
+      const TOTAL_SCENES = 4;
+      let currentSceneIndex = 0;
+      let isTransitioning = false;
+
+      // DOM Elements
+      const deckFrame = document.getElementById("presentation-deck");
+      const scenes = document.querySelectorAll(".scene");
+      const btnPrev = document.getElementById("btn-prev");
+      const btnNext = document.getElementById("btn-next");
+      const counterCurrent = document.getElementById("counter-current");
+      const progressBar = document.getElementById("progress-bar");
+      const toast = document.getElementById("deck-toast");
+      const toastMsg = document.getElementById("toast-message");
+
+      // ==========================================
+      // THREE.JS SCENE SETUP
+      // ==========================================
+      const canvas = document.getElementById("webgl-canvas");
+      let renderer, scene, camera;
+      let sculptureGroup1, sculptureGroup2, sculptureGroup3, sculptureGroup4;
+      let rootGroup;
+
+      // Mouse interactive parallax targets
+      let targetMouseX = 0, targetMouseY = 0;
+      let mouseX = 0, mouseY = 0;
+
+      function initThree() {
+        const width = deckFrame.clientWidth;
+        const height = deckFrame.clientHeight;
+
+        renderer = new THREE.WebGLRenderer({
+          canvas: canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance"
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(width, height);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+
+        scene = new THREE.Scene();
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+        camera.position.set(0, 0, 18);
+        scene.add(camera);
+
+        // Studio Lighting tailored for soft contact shadows and clay textures
+        const ambientLight = new THREE.AmbientLight(0xFFFAF2, 0.85);
+        scene.add(ambientLight);
+
+        // Key light
+        const dirLight1 = new THREE.DirectionalLight(0xFFF7EC, 1.4);
+        dirLight1.position.set(12, 20, 15);
+        dirLight1.castShadow = true;
+        dirLight1.shadow.mapSize.width = 2048;
+        dirLight1.shadow.mapSize.height = 2048;
+        dirLight1.shadow.camera.near = 0.5;
+        dirLight1.shadow.camera.far = 40;
+        dirLight1.shadow.camera.left = -12;
+        dirLight1.shadow.camera.right = 12;
+        dirLight1.shadow.camera.top = 12;
+        dirLight1.shadow.camera.bottom = -12;
+        dirLight1.shadow.bias = -0.0004;
+        dirLight1.shadow.radius = 3.5;
+        scene.add(dirLight1);
+
+        // Soft bounce fill light
+        const dirLight2 = new THREE.DirectionalLight(0xCFE0F5, 0.45);
+        dirLight2.position.set(-14, -8, 8);
+        scene.add(dirLight2);
+
+        // Rim light
+        const rimLight = new THREE.DirectionalLight(0xFFE8D6, 0.5);
+        rimLight.position.set(0, 14, -10);
+        scene.add(rimLight);
+
+        // Master root group
+        rootGroup = new THREE.Group();
+        scene.add(rootGroup);
+
+        buildSculptures();
+
+        window.addEventListener("resize", onWindowResize, { passive: true });
+        deckFrame.addEventListener("mousemove", onMouseMove, { passive: true });
+        deckFrame.addEventListener("mouseleave", onMouseLeave, { passive: true });
+
+        canvas.classList.add("loaded");
+      }
+
+      // Reusable Matte Clay Material Helper
+      function createClayMaterial(color, roughness = 0.72) {
+        return new THREE.MeshStandardMaterial({
+          color: color,
+          roughness: roughness,
+          metalness: 0.02,
+          flatShading: false
+        });
+      }
+
+      function buildSculptures() {
+        // ========================================================
+        // SCENE 1 SCULPTURE: The Curved Cradle + Spheres + Donut
+        // Exactly matches Reference Image 1
+        // ========================================================
+        sculptureGroup1 = new THREE.Group();
+        sculptureGroup1.position.set(4.5, -0.4, 0);
+
+        // 1. Salmon curved cradle (Torus segment shaped like a half-crescent bowl)
+        const cradleGeo = new THREE.TorusGeometry(3.6, 0.62, 32, 64, Math.PI * 0.92);
+        const cradleMat = createClayMaterial(PALETTE.salmonPink, 0.68);
+        const cradle = new THREE.Mesh(cradleGeo, cradleMat);
+        cradle.rotation.z = Math.PI * 1.04;
+        cradle.rotation.x = 0.12;
+        cradle.castShadow = true;
+        cradle.receiveShadow = true;
+        sculptureGroup1.add(cradle);
+
+        // 2. Large Moss-Green Sphere nested in the center of cradle
+        const sphereGreenGeo = new THREE.SphereGeometry(1.65, 48, 48);
+        const sphereGreenMat = createClayMaterial(PALETTE.mossGreen, 0.75);
+        const sphereGreen = new THREE.Mesh(sphereGreenGeo, sphereGreenMat);
+        sphereGreen.position.set(-0.6, -0.4, 0.3);
+        sphereGreen.castShadow = true;
+        sphereGreen.receiveShadow = true;
+        sculptureGroup1.add(sphereGreen);
+
+        // 3. Deep Cobalt Blue Torus standing vertically on upper right tip
+        const donutBlueGeo = new THREE.TorusGeometry(1.05, 0.42, 28, 48);
+        const donutBlueMat = createClayMaterial(PALETTE.cobaltBlue, 0.65);
+        const donutBlue = new THREE.Mesh(donutBlueGeo, donutBlueMat);
+        donutBlue.position.set(3.4, 3.2, 0.1);
+        donutBlue.rotation.y = 0.25;
+        donutBlue.castShadow = true;
+        donutBlue.receiveShadow = true;
+        sculptureGroup1.add(donutBlue);
+
+        // 4. Burnt Orange / Terracotta Small Sphere poised on top of blue donut
+        const beadGeo = new THREE.SphereGeometry(0.48, 36, 36);
+        const beadMat = createClayMaterial(PALETTE.coral, 0.6);
+        const bead = new THREE.Mesh(beadGeo, beadMat);
+        bead.position.set(3.35, 4.85, 0.12);
+        bead.castShadow = true;
+        bead.receiveShadow = true;
+        sculptureGroup1.add(bead);
+
+        rootGroup.add(sculptureGroup1);
+
+        // ========================================================
+        // SCENE 2 SCULPTURE: The Monolith Quarter-Cylinder & Lever
+        // Exactly matches Reference Image 2
+        // ========================================================
+        sculptureGroup2 = new THREE.Group();
+        sculptureGroup2.position.set(4.8, -1.8, 0);
+
+        // 1. Large Quarter Cylinder Arch (Monolith Block)
+        const archGeo = new THREE.CylinderGeometry(4.2, 4.2, 2.4, 48, 1, false, 0, Math.PI * 0.5);
+        const archMat = createClayMaterial(PALETTE.monolithCream, 0.82);
+        const arch = new THREE.Mesh(archGeo, archMat);
+        arch.rotation.z = Math.PI * 0.5;
+        arch.rotation.y = Math.PI * 0.5;
+        arch.position.set(2.0, 1.2, -1.2);
+        arch.castShadow = true;
+        arch.receiveShadow = true;
+        sculptureGroup2.add(arch);
+
+        // 2. Small secondary arch block behind
+        const smallArchGeo = new THREE.CylinderGeometry(1.8, 1.8, 1.6, 36, 1, false, 0, Math.PI * 0.5);
+        const smallArch = new THREE.Mesh(smallArchGeo, archMat);
+        smallArch.rotation.z = Math.PI * 0.5;
+        smallArch.rotation.y = Math.PI * 0.5;
+        smallArch.position.set(-2.2, 0.2, -2.8);
+        smallArch.castShadow = true;
+        smallArch.receiveShadow = true;
+        sculptureGroup2.add(smallArch);
+
+        // 3. Orange Sphere Fulcrum
+        const fulcrumGeo = new THREE.SphereGeometry(1.4, 48, 48);
+        const fulcrumMat = createClayMaterial(PALETTE.coral, 0.7);
+        const fulcrum = new THREE.Mesh(fulcrumGeo, fulcrumMat);
+        fulcrum.position.set(1.1, 0.4, 0.6);
+        fulcrum.castShadow = true;
+        fulcrum.receiveShadow = true;
+        sculptureGroup2.add(fulcrum);
+
+        // 4. Slanted Olive Green Cylinder Lever
+        const leverGeo = new THREE.CylinderGeometry(0.52, 0.52, 8.8, 36);
+        const leverMat = createClayMaterial(PALETTE.leverGreen, 0.68);
+        const lever = new THREE.Mesh(leverGeo, leverMat);
+        lever.position.set(1.2, 1.7, 0.9);
+        lever.rotation.z = Math.PI * 0.42; // Tilted seesaw angle
+        lever.rotation.x = -0.15;
+        lever.castShadow = true;
+        lever.receiveShadow = true;
+        sculptureGroup2.add(lever);
+
+        // Initial state hidden off-stage
+        sculptureGroup2.position.y = 16;
+        sculptureGroup2.scale.set(0.9, 0.9, 0.9);
+        rootGroup.add(sculptureGroup2);
+
+        // ========================================================
+        // SCENE 3 SCULPTURE: Interlocking Rings & Suspended Sphere
+        // Kinetic Harmony & Materials
+        // ========================================================
+        sculptureGroup3 = new THREE.Group();
+        sculptureGroup3.position.set(4.8, 0.2, 0);
+
+        // Main Torus Ring 1 (Terracotta)
+        const ring1Geo = new THREE.TorusGeometry(3.0, 0.45, 28, 64);
+        const ring1Mat = createClayMaterial(PALETTE.coral, 0.65);
+        const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
+        ring1.rotation.x = Math.PI * 0.35;
+        ring1.rotation.y = Math.PI * 0.2;
+        ring1.castShadow = true;
+        ring1.receiveShadow = true;
+        sculptureGroup3.add(ring1);
+
+        // Interlocking Torus Ring 2 (Cobalt Blue)
+        const ring2Geo = new THREE.TorusGeometry(2.4, 0.38, 28, 64);
+        const ring2Mat = createClayMaterial(PALETTE.cobaltBlue, 0.65);
+        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        ring2.rotation.x = -Math.PI * 0.3;
+        ring2.rotation.y = Math.PI * 0.45;
+        ring2.castShadow = true;
+        ring2.receiveShadow = true;
+        sculptureGroup3.add(ring2);
+
+        // Suspended Floating Moss Core
+        const coreGeo = new THREE.SphereGeometry(1.2, 40, 40);
+        const coreMat = createClayMaterial(PALETTE.mossGreen, 0.72);
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.set(0, 0, 0);
+        core.castShadow = true;
+        core.receiveShadow = true;
+        sculptureGroup3.add(core);
+
+        // Small satellite bead
+        const satBeadGeo = new THREE.SphereGeometry(0.5, 32, 32);
+        const satBeadMat = createClayMaterial(PALETTE.salmonPink, 0.7);
+        const satBead = new THREE.Mesh(satBeadGeo, satBeadMat);
+        satBead.position.set(2.8, 2.2, 1.2);
+        satBead.castShadow = true;
+        sculptureGroup3.add(satBead);
+
+        sculptureGroup3.position.y = 16;
+        sculptureGroup3.scale.set(0.9, 0.9, 0.9);
+        rootGroup.add(sculptureGroup3);
+
+        // ========================================================
+        // SCENE 4 SCULPTURE: Architectural Totem & Column Finale
+        // ========================================================
+        sculptureGroup4 = new THREE.Group();
+        sculptureGroup4.position.set(4.6, -0.4, 0);
+
+        // Stacked architectural cylinders and sphere
+        const baseCylGeo = new THREE.CylinderGeometry(2.8, 2.8, 1.4, 48);
+        const baseCylMat = createClayMaterial(PALETTE.monolithCream, 0.8);
+        const baseCyl = new THREE.Mesh(baseCylGeo, baseCylMat);
+        baseCyl.position.set(0, -2.4, 0);
+        baseCyl.castShadow = true;
+        baseCyl.receiveShadow = true;
+        sculptureGroup4.add(baseCyl);
+
+        const midCylGeo = new THREE.CylinderGeometry(1.8, 1.8, 2.6, 40);
+        const midCylMat = createClayMaterial(PALETTE.mossGreen, 0.72);
+        const midCyl = new THREE.Mesh(midCylGeo, midCylMat);
+        midCyl.position.set(0, -0.4, 0);
+        midCyl.castShadow = true;
+        midCyl.receiveShadow = true;
+        sculptureGroup4.add(midCyl);
+
+        const topTorusGeo = new THREE.TorusGeometry(1.6, 0.5, 28, 48);
+        const topTorusMat = createClayMaterial(PALETTE.salmonPink, 0.68);
+        const topTorus = new THREE.Mesh(topTorusGeo, topTorusMat);
+        topTorus.position.set(0, 1.6, 0);
+        topTorus.rotation.x = Math.PI * 0.45;
+        topTorus.castShadow = true;
+        topTorus.receiveShadow = true;
+        sculptureGroup4.add(topTorus);
+
+        const crownSphereGeo = new THREE.SphereGeometry(0.95, 40, 40);
+        const crownSphereMat = createClayMaterial(PALETTE.coral, 0.65);
+        const crownSphere = new THREE.Mesh(crownSphereGeo, crownSphereMat);
+        crownSphere.position.set(0, 3.2, 0);
+        crownSphere.castShadow = true;
+        crownSphere.receiveShadow = true;
+        sculptureGroup4.add(crownSphere);
+
+        sculptureGroup4.position.y = 16;
+        sculptureGroup4.scale.set(0.9, 0.9, 0.9);
+        rootGroup.add(sculptureGroup4);
+      }
+
+      function onWindowResize() {
+        if (!renderer || !camera) return;
+        const width = deckFrame.clientWidth;
+        const height = deckFrame.clientHeight;
+        camera.aspect = width / height;
+
+        // Mobile responsive camera distance so 3D objects don't clip
+        if (width < 600) {
+          camera.position.z = 24;
+          camera.position.y = -0.5;
+        } else if (width < 960) {
+          camera.position.z = 20;
+          camera.position.y = 0;
+        } else {
+          camera.position.z = 18;
+          camera.position.y = 0;
+        }
+
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+      }
+
+      function onMouseMove(e) {
+        const rect = deckFrame.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        targetMouseX = x * 1.8;
+        targetMouseY = y * 1.2;
+      }
+
+      function onMouseLeave() {
+        targetMouseX = 0;
+        targetMouseY = 0;
+      }
+
+      // Smooth Animation Render Loop
+      let clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        const elapsed = clock.getElapsedTime();
+
+        // Mouse parallax easing
+        mouseX += (targetMouseX - mouseX) * 0.05;
+        mouseY += (targetMouseY - mouseY) * 0.05;
+
+        // Subtle gentle breathing rotation
+        if (sculptureGroup1) {
+          sculptureGroup1.rotation.y = mouseX * 0.35 + Math.sin(elapsed * 0.4) * 0.04;
+          sculptureGroup1.rotation.x = -mouseY * 0.2 + Math.cos(elapsed * 0.35) * 0.02;
+        }
+
+        if (sculptureGroup2) {
+          sculptureGroup2.rotation.y = mouseX * 0.3 + Math.sin(elapsed * 0.35) * 0.03;
+          sculptureGroup2.rotation.x = -mouseY * 0.15;
+        }
+
+        if (sculptureGroup3) {
+          sculptureGroup3.rotation.y = mouseX * 0.4 + elapsed * 0.12;
+          sculptureGroup3.rotation.x = -mouseY * 0.2 + Math.sin(elapsed * 0.3) * 0.08;
+        }
+
+        if (sculptureGroup4) {
+          sculptureGroup4.rotation.y = mouseX * 0.35 + Math.cos(elapsed * 0.3) * 0.04;
+          sculptureGroup4.rotation.x = -mouseY * 0.18;
+        }
+
+        // Smooth Interpolation of 3D Sculpture Positions according to currentSceneIndex
+        update3DScenePositions();
+
+        renderer.render(scene, camera);
+      }
+
+      function update3DScenePositions() {
+        const isMobile = window.innerWidth < 960;
+        const targetX = isMobile ? 0 : 4.4;
+        const targetY = isMobile ? (window.innerWidth < 600 ? -2.4 : -1.5) : -0.2;
+        const offscreenTop = 16;
+        const offscreenBottom = -16;
+
+        const lerpSpeed = 0.065;
+
+        // Position configurations per slide
+        const configs = [
+          { group: sculptureGroup1, targetIndex: 0 },
+          { group: sculptureGroup2, targetIndex: 1 },
+          { group: sculptureGroup3, targetIndex: 2 },
+          { group: sculptureGroup4, targetIndex: 3 },
+        ];
+
+        configs.forEach(({ group, targetIndex }) => {
+          if (!group) return;
+
+          let destY, destScale;
+          if (currentSceneIndex === targetIndex) {
+            destY = targetY;
+            destScale = 1.0;
+          } else if (targetIndex < currentSceneIndex) {
+            destY = offscreenTop;
+            destScale = 0.88;
+          } else {
+            destY = offscreenBottom;
+            destScale = 0.88;
+          }
+
+          group.position.x += (targetX - group.position.x) * lerpSpeed;
+          group.position.y += (destY - group.position.y) * lerpSpeed;
+          const curS = group.scale.x;
+          const nextS = curS + (destScale - curS) * lerpSpeed;
+          group.scale.set(nextS, nextS, nextS);
+        });
+      }
+
+      // ==========================================
+      // SLIDE TRANSITION SYSTEM (Cinematic & Fluid)
+      // ==========================================
+      function goToScene(newIndex) {
+        if (newIndex < 0 || newIndex >= TOTAL_SCENES || newIndex === currentSceneIndex || isTransitioning) {
+          return;
+        }
+
+        isTransitioning = true;
+        const prevIndex = currentSceneIndex;
+        currentSceneIndex = newIndex;
+
+        const prevScene = scenes[prevIndex];
+        const nextScene = scenes[newIndex];
+
+        // Update active classes for CSS opacity & transform transition
+        scenes.forEach((s, idx) => {
+          s.classList.remove("active", "prev");
+          if (idx < newIndex) {
+            s.classList.add("prev");
+          }
+        });
+
+        nextScene.classList.add("active");
+
+        // Update Background Watermarks
+        const bgTitle = document.getElementById("bg-watermark-title");
+        const bgSub = document.getElementById("bg-watermark-sub");
+        if (bgTitle) {
+          bgTitle.style.opacity = newIndex === 0 ? "1" : "0";
+          bgTitle.style.transform = newIndex === 0 ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -60%) scale(0.95)";
+        }
+        if (bgSub) {
+          bgSub.style.opacity = newIndex === 0 ? "1" : "0";
+          bgSub.style.transform = newIndex === 0 ? "scale(1)" : "scale(0.95)";
+        }
+
+        // Update Nav UI
+        counterCurrent.textContent = `0${newIndex + 1}`;
+        progressBar.style.transform = `scaleX(${(newIndex + 1) / TOTAL_SCENES})`;
+
+        btnPrev.disabled = newIndex === 0;
+        btnNext.disabled = newIndex === TOTAL_SCENES - 1;
+
+        // Transition cooldown to prevent jitter
+        setTimeout(() => {
+          isTransitioning = false;
+        }, 650);
+      }
+
+      function nextScene() {
+        if (currentSceneIndex < TOTAL_SCENES - 1) {
+          goToScene(currentSceneIndex + 1);
+        }
+      }
+
+      function prevScene() {
+        if (currentSceneIndex > 0) {
+          goToScene(currentSceneIndex - 1);
+        }
+      }
+
+      // ==========================================
+      // USER INTERACTIONS (Mouse Wheel, Touch, Keys)
+      // ==========================================
+
+      // 1. Navigation Button Clicks
+      btnNext.addEventListener("click", nextScene);
+      btnPrev.addEventListener("click", prevScene);
+
+      // 2. Keyboard Navigation
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+          e.preventDefault();
+          nextScene();
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") {
+          e.preventDefault();
+          prevScene();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          goToScene(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          goToScene(TOTAL_SCENES - 1);
+        }
+      });
+
+      // 3. Wheel / Trackpad Scroll (Debounced with Delta Accumulation)
+      let wheelAccumulator = 0;
+      let wheelTimer = null;
+
+      window.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        if (isTransitioning) return;
+
+        wheelAccumulator += e.deltaY + e.deltaX;
+
+        clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(() => {
+          wheelAccumulator = 0;
+        }, 180);
+
+        if (wheelAccumulator > 45) {
+          wheelAccumulator = 0;
+          nextScene();
+        } else if (wheelAccumulator < -45) {
+          wheelAccumulator = 0;
+          prevScene();
+        }
+      }, { passive: false });
+
+      // 4. Mobile Touch / Swipe Handling
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
+
+      window.addEventListener("touchstart", (e) => {
+        if (e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+      }, { passive: true });
+
+      window.addEventListener("touchend", (e) => {
+        if (e.changedTouches.length !== 1 || isTransitioning) return;
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        const duration = Date.now() - touchStartTime;
+
+        // Horizontal swipe primary, vertical swipe secondary
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+
+        if (duration < 500 && (absX > 40 || absY > 40)) {
+          if (absX >= absY) {
+            // Horizontal swipe
+            if (deltaX < -40) nextScene();
+            else if (deltaX > 40) prevScene();
+          } else {
+            // Vertical swipe
+            if (deltaY < -40) nextScene();
+            else if (deltaY > 40) prevScene();
+          }
+        }
+      }, { passive: true });
+
+      // Interactive Demo Actions
+      const cardTrigger = document.getElementById("card-video-trigger");
+      if (cardTrigger) {
+        cardTrigger.addEventListener("click", () => {
+          showToast("▶ Loading Atelier Kinetic Reel (Edition 2077)...");
+        });
+      }
+
+      const btnInquire = document.getElementById("btn-inquire");
+      if (btnInquire) {
+        btnInquire.addEventListener("click", () => {
+          showToast("✓ Private dossier reservation request dispatched.");
+        });
+      }
+
+      const btnCatalogue = document.getElementById("btn-catalogue");
+      if (btnCatalogue) {
+        btnCatalogue.addEventListener("click", () => {
+          showToast("📥 Downloading Specimen Catalogue (PDF, 14.8 MB)...");
+        });
+      }
+
+      let toastTimeout = null;
+      function showToast(msg) {
+        toastMsg.textContent = msg;
+        toast.classList.add("visible");
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toast.classList.remove("visible");
+        }, 3200);
+      }
+
+      // Boot
+      initThree();
+      onWindowResize();
+      animate();
+
+    })();
+  </script>
+</body>
+</html>

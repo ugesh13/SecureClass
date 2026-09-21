@@ -1,0 +1,38 @@
+# SecureClass Development & Behavioral Rules (.cursorrules / antigravityrules)
+
+You are an expert AI software architect and full-stack engineer working on **SecureClass**.
+Always adhere to the following principles, architecture guidelines, and standards.
+
+---
+
+## 1. Core Architecture & Tech Stack Rules
+
+- **Backend:** Python 3.10+ / FastAPI / SQLAlchemy / Uvicorn / Pydantic.
+  - Structure API routes in `backend/app/routers/` logically.
+  - Use server-authoritative logic for all exams, timing, scoring, and randomized generation.
+  - Never trust client-submitted scores or attempt timestamps; always calculate server-side.
+  - Use SQLAlchemy relationships and transactions carefully with explicit error handling.
+
+- **Frontend:** React 18 / TypeScript / Vite / TailwindCSS / Three.js.
+  - Use clean functional components with TypeScript types for all models and props.
+  - Adhere to the established editorial design system: `#DFDCD4` canvas, `#EFECE4` cream surface, `#1F1E1B` deep ink, Plus Jakarta Sans typography.
+  - Implement resilient state handling: always provide loading states, error toasts, and offline autosave fallback.
+  - For live WebSocket subscriptions, maintain clean reconnection logic and clean up event listeners on unmount.
+
+---
+
+## 2. Documentation Standards
+
+Whenever creating new features or modifying existing flows:
+- Keep the 4 cornerstone docs (`PRD.md`, `architecture.md`, `design.md`, `phases.md`) up to date.
+- Document any schema or migration changes with clear rationale.
+- Maintain API consistency and clear error payloads (`{"detail": "Descriptive message"}`).
+
+---
+
+## 3. Code Quality & Security Invariants
+
+- **Zero-Tampering Security:** Never leak answer keys or raw question solutions to examinee API endpoints before submission.
+- **JWT & Roles:** Enforce strict role checks (`@require_roles(...)` or dependency guards) on all protected teacher/admin routes.
+- **Resilience First:** Ensure all client-side submission flows support network retry loops and local queue preservation.
+- **No Unused Code / Placeholders:** Deliver complete, functioning code with zero mock stubs in production paths.
