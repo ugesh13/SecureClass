@@ -461,6 +461,70 @@ def save_answer(
     return {"ok": True, "saved_at": datetime.utcnow()}
 
 
+@router.post("/attempts/{aid}/answers/batch")
+@router.post("/attempts/{aid}/autosave")
+def autosave_batch_answers(
+    aid: str,
+    payload: schemas.BatchAnswersIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """Batch autosave endpoint: atomically persists queued student answers when reconnecting or on window unload."""
+    attempt = db.query(models.ExamAttempt).filter_by(id=aid).first()
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    if attempt.student_id != user.id:
+        raise HTTPException(403, "Forbidden")
+    if attempt.status != "in_progress":
+        raise HTTPException(400, "Attempt not in progress")
+    exam = db.query(models.Exam).filter_by(id=attempt.exam_id).first()
+    if exam and exam.is_paused:
+        raise HTTPException(400, "Exam is currently paused by the proctor")
+
+    option_orders = attempt.option_orders or {}
+    question_order = attempt.question_order or []
+    saved_count = 0
+
+    for item in payload.answers:
+        if item.question_id not in question_order:
+            continue
+        order = option_orders.get(item.question_id)
+        if order is None:
+            continue
+
+        original_idx = None
+        if item.displayed_index is not None:
+            if 0 <= item.displayed_index < len(order):
+                original_idx = order[item.displayed_index]
+
+        ans = (
+            db.query(models.AttemptAnswer)
+            .filter_by(attempt_id=aid, question_id=item.question_id)
+            .first()
+        )
+        if ans:
+            ans.selected_original_index = original_idx
+            if item.confidence_level:
+                ans.confidence_level = item.confidence_level
+        else:
+            db.add(
+                models.AttemptAnswer(
+                    attempt_id=aid,
+                    question_id=item.question_id,
+                    selected_original_index=original_idx,
+                    confidence_level=item.confidence_level or "certain",
+                )
+            )
+        saved_count += 1
+
+    db.commit()
+    return {
+        "ok": True,
+        "saved_count": saved_count,
+        "autosaved_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
 @router.post("/attempts/{aid}/submit")
 async def submit_attempt(
     aid: str,

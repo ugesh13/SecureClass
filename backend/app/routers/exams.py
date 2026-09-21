@@ -281,6 +281,7 @@ def update_exam(
 @router.delete("/{eid}")
 def delete_exam(
     eid: str,
+    force: bool = False,
     db: Session = Depends(get_db),
     user: models.User = Depends(require_roles("teacher", "admin", "super_admin")),
 ):
@@ -289,13 +290,26 @@ def delete_exam(
         raise HTTPException(404, "Exam not found")
     if exam.teacher_id != user.id and user.role != "super_admin":
         raise HTTPException(403, "Forbidden")
-    active_attempts = db.query(models.ExamAttempt).filter_by(exam_id=eid).count()
-    if active_attempts > 0:
-        raise HTTPException(400, "Cannot delete exam: Student attempts exist for this exam.")
-    db.query(models.ExamSession).filter_by(exam_id=eid).delete()
+    
+    attempts = db.query(models.ExamAttempt).filter_by(exam_id=eid).all()
+    if attempts:
+        if not force:
+            raise HTTPException(
+                400,
+                f"Cannot delete exam: {len(attempts)} student attempt(s) exist. Confirm with force delete to remove.",
+            )
+        # Cascade delete related attempt records
+        attempt_ids = [a.id for a in attempts]
+        db.query(models.AttemptAnswer).filter(models.AttemptAnswer.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(models.AttemptQuestionSnapshot).filter(models.AttemptQuestionSnapshot.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(models.IntegrityEvent).filter(models.IntegrityEvent.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(models.ScoreAdjustment).filter(models.ScoreAdjustment.attempt_id.in_(attempt_ids)).delete(synchronize_session=False)
+        db.query(models.ExamAttempt).filter_by(exam_id=eid).delete(synchronize_session=False)
+
+    db.query(models.ExamSession).filter_by(exam_id=eid).delete(synchronize_session=False)
     db.delete(exam)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "deleted_id": eid}
 
 
 @router.post("/{eid}/duplicate", response_model=schemas.ExamOut)

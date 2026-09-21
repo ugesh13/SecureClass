@@ -75,14 +75,13 @@ export default function ExamTake() {
             if (saved.answers && Object.keys(saved.answers).length > 0) {
               restoredAnswers = saved.answers;
               restoredConfs = saved.confidences || {};
-              // Re-submit restored answers to server in background
-              for (const [qid, displayedIdx] of Object.entries(saved.answers)) {
-                api.post(`/attempts/${data.attempt_id || aid}/answers`, {
-                  question_id: qid,
-                  displayed_index: displayedIdx,
-                  confidence_level: (saved.confidences || {})[qid] || "certain",
-                }).catch(() => {});
-              }
+              // Batch re-submit restored answers to server
+              const batchList = Object.entries(saved.answers).map(([qid, displayedIdx]) => ({
+                question_id: qid,
+                displayed_index: displayedIdx,
+                confidence_level: (saved.confidences || {})[qid] || "certain",
+              }));
+              api.post(`/attempts/${data.attempt_id || aid}/answers/batch`, { answers: batchList }).catch(() => {});
             }
           } catch {}
         }
@@ -126,7 +125,7 @@ export default function ExamTake() {
     }
   }, [localAnswers, localConfidences, attempt]);
 
-  // beforeunload — last-chance save
+  // beforeunload — last-chance save to both localStorage and backend via sendBeacon
   useEffect(() => {
     const handler = () => {
       if (attempt && Object.keys(localAnswers).length > 0) {
@@ -136,6 +135,19 @@ export default function ExamTake() {
           confidences: localConfidences,
           savedAt: new Date().toISOString(),
         }));
+
+        try {
+          const authTok = localStorage.getItem("sc_token");
+          const payload = JSON.stringify({
+            answers: Object.entries(localAnswers).map(([qid, displayedIdx]) => ({
+              question_id: qid,
+              displayed_index: displayedIdx,
+              confidence_level: localConfidences[qid] || "certain",
+            })),
+          });
+          const blob = new Blob([payload], { type: "application/json" });
+          navigator.sendBeacon(`/api/attempts/${attempt.attempt_id}/autosave`, blob);
+        } catch {}
       }
     };
     window.addEventListener("beforeunload", handler);

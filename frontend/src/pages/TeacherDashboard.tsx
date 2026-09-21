@@ -27,10 +27,18 @@ export default function TeacherDashboard() {
   });
 
   const deleteExam = useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/exams/${id}`)).data,
+    mutationFn: async ({ id, force = false }: { id: string; force?: boolean }) =>
+      (await api.delete(`/exams/${id}${force ? "?force=true" : ""}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["exams"] }),
-    onError: (err: any) => {
-      alert(err.response?.data?.detail || "Could not delete exam. It may have active student attempts.");
+    onError: (err: any, variables) => {
+      const detail = err.response?.data?.detail || "";
+      if (detail.includes("student attempt") && !variables.force) {
+        if (window.confirm(`${detail}\n\nDo you want to permanently FORCE DELETE this exam and remove all test attempts?`)) {
+          deleteExam.mutate({ id: variables.id, force: true });
+          return;
+        }
+      }
+      alert(detail || "Could not delete exam.");
     },
   });
 
@@ -283,12 +291,13 @@ export default function TeacherDashboard() {
                         </Link>
                         {/* Delete Button */}
                         <button
+                          type="button"
                           onClick={() => {
                             if (window.confirm(`Delete exam "${e.title}"? This cannot be undone.`)) {
-                              deleteExam.mutate(e.id);
+                              deleteExam.mutate({ id: e.id, force: false });
                             }
                           }}
-                          className="p-1.5 rounded-lg text-[#686760] hover:text-red-600 hover:bg-red-50 transition"
+                          className="p-1.5 rounded-lg text-[#686760] hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
                           title="Delete exam"
                         >
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

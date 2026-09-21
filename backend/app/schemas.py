@@ -191,6 +191,10 @@ class AnswerIn(BaseModel):
     confidence_level: Optional[str] = "certain"  # certain|unsure|guessing
 
 
+class BatchAnswersIn(BaseModel):
+    answers: List[AnswerIn]
+
+
 class IntegrityEventIn(BaseModel):
     event_type: str
     metadata: Dict[str, Any] = {}

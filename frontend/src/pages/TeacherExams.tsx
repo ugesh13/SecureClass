@@ -46,10 +46,18 @@ export default function TeacherExams() {
   });
 
   const deleteExam = useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/exams/${id}`)).data,
+    mutationFn: async ({ id, force = false }: { id: string; force?: boolean }) =>
+      (await api.delete(`/exams/${id}${force ? "?force=true" : ""}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["exams"] }),
-    onError: (err: any) => {
-      alert(err.response?.data?.detail || "Could not delete exam.");
+    onError: (err: any, variables) => {
+      const detail = err.response?.data?.detail || "";
+      if (detail.includes("student attempt") && !variables.force) {
+        if (window.confirm(`${detail}\n\nDo you want to permanently FORCE DELETE this exam and remove all test attempts?`)) {
+          deleteExam.mutate({ id: variables.id, force: true });
+          return;
+        }
+      }
+      alert(detail || "Could not delete exam.");
     },
   });
 
@@ -345,14 +353,16 @@ export default function TeacherExams() {
                         Duplicate
                       </button>
 
-                      {e.status === "draft" && (
+                      {e.status !== "active" && (
                         <button
+                          type="button"
                           onClick={() => {
-                            if (window.confirm(`Delete draft exam "${e.title}"?`)) {
-                              deleteExam.mutate(e.id);
+                            if (window.confirm(`Delete exam "${e.title}"?`)) {
+                              deleteExam.mutate({ id: e.id, force: false });
                             }
                           }}
-                          className="px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition"
+                          className="px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                          title="Delete Exam"
                         >
                           Delete
                         </button>

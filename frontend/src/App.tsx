@@ -13,6 +13,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentExams from "./pages/StudentExams";
 import StudentResults from "./pages/StudentResults";
 import StudentProfile from "./pages/StudentProfile";
+import AdminDashboard from "./pages/AdminDashboard";
 import ExamTake from "./pages/ExamTake";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -36,6 +37,16 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
+      {/* Admin Route */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <Protected roles={["admin", "super_admin"]}>
+            <AdminDashboard />
+          </Protected>
+        }
+      />
 
       {/* Teacher Routes */}
       <Route

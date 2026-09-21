@@ -1,7 +1,14 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { api } from "../lib/api";
 
-type User = { id: string; email: string; full_name: string; role: string };
+type User = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  student_ref?: string | null;
+  institution_id?: string | null;
+};
 
 type Ctx = {
   user: User | null;
@@ -14,52 +21,57 @@ type Ctx = {
 const AuthCtx = createContext<Ctx>({} as any);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const raw = localStorage.getItem("sc_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    return !localStorage.getItem("sc_user") && !localStorage.getItem("sc_token");
+  });
 
   useEffect(() => {
     const raw = localStorage.getItem("sc_user");
     const token = localStorage.getItem("sc_token");
 
-    if (raw && token) {
-      try {
-        // Immediately restore from localStorage for fast UI
-        const cached = JSON.parse(raw);
-        setUser(cached);
-      } catch {
-        localStorage.removeItem("sc_user");
-        localStorage.removeItem("sc_token");
+    if (token) {
+      if (raw && !user) {
+        try {
+          setUser(JSON.parse(raw));
+        } catch {
+          // ignore
+        }
       }
 
-      // Validate the token with the server in background
-      // If invalid, clear the session silently
+      // Background token validation — do NOT wipe credentials on network errors
       api.get("/users/me")
         .then(({ data }) => {
-          // Update cached user with fresh server data
           const freshUser: User = {
             id: data.id,
             email: data.email,
             full_name: data.full_name,
             role: data.role,
+            student_ref: data.student_ref,
+            institution_id: data.institution_id,
           };
           localStorage.setItem("sc_user", JSON.stringify(freshUser));
           setUser(freshUser);
         })
-        .catch(() => {
-          // Token expired or invalid — clear session
-          localStorage.removeItem("sc_token");
-          localStorage.removeItem("sc_user");
-          setUser(null);
+        .catch((err) => {
+          // ONLY clear session if server explicitly rejected authentication with 401
+          if (err.response?.status === 401) {
+            localStorage.removeItem("sc_token");
+            localStorage.removeItem("sc_user");
+            setUser(null);
+          }
         })
         .finally(() => {
           setLoading(false);
         });
     } else {
-      // No stored auth — clean up any partial state
-      if (!raw || !token) {
-        localStorage.removeItem("sc_user");
-        localStorage.removeItem("sc_token");
-      }
       setLoading(false);
     }
   }, []);
